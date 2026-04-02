@@ -74,13 +74,16 @@ async def generate(
     request_id: str = Depends(get_request_id),
     idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ) -> GenerateResponse:
-    if not idempotency_key:
+    effective_idempotency_key = idempotency_key or payload.idempotency_key
+
+    if not effective_idempotency_key:
         raise HTTPException(
-            status_code=400, detail="Idempotency-Key header is required."
+            status_code=400,
+            detail="Idempotency-Key header or idempotency_key body field is required.",
         )
 
     job_claim = await job_registry.claim(
-        idempotency_key,
+        effective_idempotency_key,
         generation_semaphore,
         lambda: generation_service.generate(payload),
     )
@@ -91,7 +94,7 @@ async def generate(
         logger.info(
             "generate_cache_hit request_id=%s idempotency_key=%s",
             request_id,
-            idempotency_key,
+            effective_idempotency_key,
         )
         return job_claim.response
 
@@ -106,7 +109,7 @@ async def generate(
         "generate_%s request_id=%s idempotency_key=%s prompt_id=%s",
         job_claim.status,
         request_id,
-        idempotency_key,
+        effective_idempotency_key,
         worker_state.last_prompt_id,
     )
     return response

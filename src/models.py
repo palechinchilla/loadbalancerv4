@@ -17,6 +17,7 @@ class GenerateRequest(BaseModel):
     workflow: dict[str, Any]
     images: list[InputImage] | None = None
     comfy_org_api_key: str | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1)
 
     @field_validator("workflow", mode="before")
     @classmethod
